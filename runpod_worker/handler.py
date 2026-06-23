@@ -156,10 +156,19 @@ def patch_torchaudio() -> None:
 
 
 def patch_torch_serialization(torch_module) -> None:
+    original_load = torch_module.load
+
+    def trusted_load(*args, **kwargs):
+        kwargs.setdefault("weights_only", False)
+        return original_load(*args, **kwargs)
+
+    torch_module.load = trusted_load
+
     try:
         from omegaconf import DictConfig, ListConfig
+        from omegaconf.base import ContainerMetadata
 
-        torch_module.serialization.add_safe_globals([DictConfig, ListConfig])
+        torch_module.serialization.add_safe_globals([DictConfig, ListConfig, ContainerMetadata])
     except Exception:
         return
 
