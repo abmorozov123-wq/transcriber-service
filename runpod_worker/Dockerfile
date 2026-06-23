@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.3.1-cuda11.8-cudnn8-runtime
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -10,12 +10,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 WORKDIR /worker
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg git \
+    && apt-get install -y --no-install-recommends ffmpeg git python3 python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 COPY runpod_worker/requirements.txt /worker/requirements.txt
-RUN pip install --no-cache-dir -r /worker/requirements.txt
+RUN python3 -m pip install --no-cache-dir --upgrade pip \
+    && python3 -m pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 \
+    && python3 -m pip install --no-cache-dir -r /worker/requirements.txt
 
 COPY runpod_worker/handler.py /worker/handler.py
 
-CMD ["python", "-u", "handler.py"]
+CMD ["python3", "-u", "handler.py"]
