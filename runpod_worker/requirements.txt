@@ -1,3 +1,4 @@
 requests==2.32.3
 runpod==1.7.7
 whisperx==3.3.1
+matplotlib==3.9.4
