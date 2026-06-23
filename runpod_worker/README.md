@@ -2,6 +2,8 @@
 
 This image is intended for RunPod Serverless.
 
+Use the commit-specific Docker tag for RunPod releases.
+
 Required endpoint environment variables:
 
 ```env
