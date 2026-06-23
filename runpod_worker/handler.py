@@ -127,6 +127,8 @@ def dummy_response(input_data):
 
 
 def patch_torchaudio() -> None:
+    from dataclasses import dataclass
+
     import torchaudio
 
     if hasattr(torchaudio, "AudioMetaData"):
@@ -137,7 +139,15 @@ def patch_torchaudio() -> None:
 
         torchaudio.AudioMetaData = AudioMetaData
     except Exception:
-        return
+        @dataclass
+        class AudioMetaData:
+            sample_rate: int
+            num_frames: int
+            num_channels: int
+            bits_per_sample: int
+            encoding: str
+
+        torchaudio.AudioMetaData = AudioMetaData
 
 
 if __name__ == "__main__":
