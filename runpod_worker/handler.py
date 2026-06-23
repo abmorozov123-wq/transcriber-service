@@ -17,6 +17,8 @@ def handler(event):
     import torch
     import whisperx
 
+    patch_torch_serialization(torch)
+
     job_id = input_data["job_id"]
     audio_url = input_data["audio_url"]
     language = input_data.get("language", "ru")
@@ -151,6 +153,15 @@ def patch_torchaudio() -> None:
 
     if not hasattr(torchaudio, "list_audio_backends"):
         torchaudio.list_audio_backends = lambda: ["ffmpeg"]
+
+
+def patch_torch_serialization(torch_module) -> None:
+    try:
+        from omegaconf import DictConfig, ListConfig
+
+        torch_module.serialization.add_safe_globals([DictConfig, ListConfig])
+    except Exception:
+        return
 
 
 if __name__ == "__main__":

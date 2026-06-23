@@ -22,9 +22,11 @@ COPY runpod_worker/handler.py /worker/handler.py
 
 RUN python3 - <<'PY'
 from handler import patch_torchaudio
+from handler import patch_torch_serialization
 patch_torchaudio()
 import torch
 import torchaudio
+patch_torch_serialization(torch)
 import whisperx
 print("smoke ok", torch.__version__, torchaudio.__version__)
 PY
