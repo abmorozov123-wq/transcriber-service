@@ -6,6 +6,16 @@ from pathlib import Path
 import requests
 import runpod
 import torch
+import torchaudio
+
+if not hasattr(torchaudio, "AudioMetaData"):
+    try:
+        from torchaudio._backend.common import AudioMetaData
+
+        torchaudio.AudioMetaData = AudioMetaData
+    except Exception:
+        pass
+
 import whisperx
 
 
