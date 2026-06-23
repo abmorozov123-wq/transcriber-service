@@ -20,4 +20,13 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip \
 
 COPY runpod_worker/handler.py /worker/handler.py
 
+RUN python3 - <<'PY'
+from handler import patch_torchaudio
+patch_torchaudio()
+import torch
+import torchaudio
+import whisperx
+print("smoke ok", torch.__version__, torchaudio.__version__)
+PY
+
 CMD ["python3", "-u", "handler.py"]

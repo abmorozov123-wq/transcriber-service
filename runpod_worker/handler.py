@@ -5,18 +5,6 @@ from pathlib import Path
 
 import requests
 import runpod
-import torch
-import torchaudio
-
-if not hasattr(torchaudio, "AudioMetaData"):
-    try:
-        from torchaudio._backend.common import AudioMetaData
-
-        torchaudio.AudioMetaData = AudioMetaData
-    except Exception:
-        pass
-
-import whisperx
 
 
 def handler(event):
@@ -24,6 +12,10 @@ def handler(event):
     dummy_mode = os.getenv("RUNPOD_WORKER_DUMMY", "false").lower() == "true"
     if dummy_mode:
         return dummy_response(input_data)
+
+    patch_torchaudio()
+    import torch
+    import whisperx
 
     job_id = input_data["job_id"]
     audio_url = input_data["audio_url"]
@@ -134,4 +126,19 @@ def dummy_response(input_data):
     }
 
 
-runpod.serverless.start({"handler": handler})
+def patch_torchaudio() -> None:
+    import torchaudio
+
+    if hasattr(torchaudio, "AudioMetaData"):
+        return
+
+    try:
+        from torchaudio._backend.common import AudioMetaData
+
+        torchaudio.AudioMetaData = AudioMetaData
+    except Exception:
+        return
+
+
+if __name__ == "__main__":
+    runpod.serverless.start({"handler": handler})
