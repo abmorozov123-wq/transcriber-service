@@ -149,6 +149,9 @@ def patch_torchaudio() -> None:
 
         torchaudio.AudioMetaData = AudioMetaData
 
+    if not hasattr(torchaudio, "list_audio_backends"):
+        torchaudio.list_audio_backends = lambda: ["ffmpeg"]
+
 
 if __name__ == "__main__":
     runpod.serverless.start({"handler": handler})
