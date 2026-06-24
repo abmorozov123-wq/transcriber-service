@@ -47,11 +47,6 @@ async def submit_uploaded_jobs(settings) -> None:
                 job.status = result.status
                 job.runpod_job_id = result.runpod_job_id
                 job.updated_at = utcnow()
-                await send_message(
-                    settings,
-                    job.user_id,
-                    f"Job sent to RunPod.\nJob: {job.id}\nStatus: {job.status}",
-                )
             except Exception as exc:
                 logger.exception("Failed to submit job %s", job.id)
                 job.status = JobStatus.failed.value
@@ -113,6 +108,7 @@ def complete_job(settings, job: Job, output: dict) -> None:
         raw_payload,
         parse_participants(job.participants),
         settings,
+        job.created_at,
     )
     job.result_md_path = str(md_path)
     job.result_txt_path = str(txt_path)

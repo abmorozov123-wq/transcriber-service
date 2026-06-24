@@ -1,7 +1,9 @@
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -9,6 +11,8 @@ from app.config import Settings
 
 
 SYSTEM_PROMPT = """Ты редактор расшифровок аудиозаписей. Твоя задача — превратить сырую ASR-расшифровку с таймкодами и speaker labels в чистый, удобный для чтения текст.
+
+Общий контекст: этот разговор скорее всего переговоры в бизнесах альфа-групп. Важные аббревиатуры и бизнесы, которые надо учесть при исправлении спорных слов: CTF (ситиэф), Альфа-Банк, Альфа-Страхование, X5 (икс пять), А1 (а один), Боржоми, Альфакап (Альфа-Капитал), РВК (Росводоканал). Фамилии: Верхошинский, Гиязов, Афендиков, Корня, Эмдин, Шехтерман, Анохин.
 
 Правила:
 1. Не выдумывай факты, имена, должности, даты и контекст.
@@ -29,6 +33,7 @@ def write_transcripts(
     raw_payload: dict[str, Any],
     participants: list[str],
     settings: Settings,
+    accepted_at: datetime,
 ) -> tuple[Path, Path]:
     md_path = job_dir / "transcript_speakers.md"
     txt_path = job_dir / "transcript_clean.txt"
@@ -42,6 +47,7 @@ def write_transcripts(
     except Exception as exc:
         markdown, plain_text = fallback_transcripts(job_id, raw_payload, exc)
 
+    plain_text = add_conversation_time_header(plain_text, raw_payload, accepted_at)
     md_path.write_text(markdown + "\n", encoding="utf-8")
     txt_path.write_text(plain_text + "\n", encoding="utf-8")
     return md_path, txt_path
@@ -109,6 +115,7 @@ def build_user_prompt(raw_payload: dict[str, Any], participants: list[str]) -> s
 
 Требования к plain_text:
 - Без markdown-разметки.
+- В начале укажи дату и время начала и конца разговора.
 - Чистый читабельный текст.
 - Сохраняй speaker labels или роли."""
 
@@ -166,6 +173,58 @@ def format_segment_lines(raw_payload: dict[str, Any]) -> list[str]:
         if text:
             lines.append(f"[{start}] {speaker}: {text}")
     return lines or ["[00:00:00] SPEAKER_UNKNOWN: Распознанный текст отсутствует."]
+
+
+def add_conversation_time_header(
+    plain_text: str,
+    raw_payload: dict[str, Any],
+    accepted_at: datetime,
+) -> str:
+    start_at, end_at = conversation_time_range(raw_payload, accepted_at)
+    header = "\n".join(
+        [
+            f"Начало разговора: {format_local_datetime(start_at)}",
+            f"Конец разговора: {format_local_datetime(end_at)}",
+            "",
+        ]
+    )
+    body = strip_existing_time_header(plain_text)
+    return header + body
+
+
+def conversation_time_range(
+    raw_payload: dict[str, Any],
+    accepted_at: datetime,
+) -> tuple[datetime, datetime]:
+    base = accepted_at
+    if base.tzinfo is None:
+        base = base.replace(tzinfo=timezone.utc)
+
+    segments = raw_payload.get("segments", [])
+    starts = [float(item.get("start", 0.0)) for item in segments]
+    ends = [float(item.get("end", 0.0)) for item in segments]
+    start_offset = min(starts) if starts else 0.0
+    end_offset = max(ends) if ends else start_offset
+    return base + timedelta(seconds=start_offset), base + timedelta(seconds=end_offset)
+
+
+def format_local_datetime(value: datetime) -> str:
+    return value.astimezone(ZoneInfo("Europe/Moscow")).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def strip_existing_time_header(value: str) -> str:
+    lines = value.splitlines()
+    while lines and (
+        lines[0].startswith("Начало разговора:")
+        or lines[0].startswith("Конец разговора:")
+        or lines[0].startswith("Дата и время начала:")
+        or lines[0].startswith("Дата и время окончания:")
+        or lines[0].startswith("Время начала:")
+        or lines[0].startswith("Время окончания:")
+        or not lines[0].strip()
+    ):
+        lines.pop(0)
+    return "\n".join(lines).strip()
 
 
 def format_timestamp(seconds: float) -> str:

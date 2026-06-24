@@ -9,12 +9,10 @@ from app.config import Settings, get_settings
 from app.db import get_db, init_db
 from app.models import Job, JobStatus
 from app.notifier import send_message
-from app.runpod_client import RunPodClient
 from app.schemas import JobResponse, UploadResponse
 from app.storage import (
     create_job_id,
     job_dir,
-    make_download_token,
     safe_suffix,
     save_upload_file,
     verify_download_token,
@@ -76,29 +74,8 @@ async def upload_audio(
         send_message,
         settings,
         telegram_user_id,
-        f"File accepted.\nJob: {job.id}\nStatus: {job.status}",
+        f"✅ File accepted.\nJob: {job.id}",
     )
-
-    if settings.auto_submit_runpod:
-        download_token = make_download_token(settings, job_id)
-        audio_url = f"{settings.public_base_url}/jobs/{job_id}/download-audio?token={download_token}"
-        runpod = RunPodClient(settings)
-        try:
-            result = await runpod.submit_job(
-                job_id=job_id,
-                audio_url=audio_url,
-                participants=parse_participants(participants),
-            )
-            job.status = result.status
-            job.runpod_job_id = result.runpod_job_id
-            job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
-            db.commit()
-        except Exception as exc:
-            job.status = JobStatus.failed.value
-            job.error = str(exc)
-            job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
-            db.commit()
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to submit RunPod job") from exc
 
     return UploadResponse(job_id=job.id, status=job.status)
 
@@ -153,9 +130,3 @@ def result_file_response(db: Session, job_id: str, attr: str, filename: str) -> 
     if not path.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Result file is missing")
     return FileResponse(path, filename=filename)
-
-
-def parse_participants(participants: str | None) -> list[str]:
-    if not participants:
-        return []
-    return [item.strip() for item in participants.replace("\n", ",").split(",") if item.strip()]
