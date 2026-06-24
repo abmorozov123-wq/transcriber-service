@@ -27,8 +27,9 @@ patch_torchaudio()
 import torch
 import torchaudio
 patch_torch_serialization(torch)
+import ctranslate2
 import whisperx
-print("smoke ok", torch.__version__, torchaudio.__version__)
+print("smoke ok", torch.__version__, torchaudio.__version__, ctranslate2.__version__)
 PY
 
 CMD ["python3", "-u", "handler.py"]
