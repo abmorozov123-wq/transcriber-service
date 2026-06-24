@@ -62,6 +62,8 @@ def handler(event):
 
             patch_huggingface_hub_auth_compat()
             DiarizationPipeline, assign_word_speakers = get_diarization_api(whisperx)
+            patch_huggingface_hub_auth_compat()
+            verify_pyannote_access(hf_token)
             diarize_model = DiarizationPipeline(use_auth_token=hf_token, device=device)
             diarize_segments = diarize_model(str(wav_path))
             result = assign_word_speakers(diarize_segments, result)
@@ -152,6 +154,10 @@ def patch_huggingface_hub_auth_compat() -> None:
     if "use_auth_token" in inspect.signature(original_download).parameters:
         return
     if getattr(original_download, "_transcriber_auth_compat", False):
+        compat_download = original_download
+        pipeline_module = sys.modules.get("pyannote.audio.core.pipeline")
+        if pipeline_module is not None:
+            pipeline_module.hf_hub_download = compat_download
         return
 
     def hf_hub_download_compat(*args, **kwargs):
@@ -167,6 +173,22 @@ def patch_huggingface_hub_auth_compat() -> None:
     pipeline_module = sys.modules.get("pyannote.audio.core.pipeline")
     if pipeline_module is not None:
         pipeline_module.hf_hub_download = hf_hub_download_compat
+
+
+def verify_pyannote_access(hf_token: str) -> None:
+    from huggingface_hub import hf_hub_download
+
+    try:
+        hf_hub_download(
+            repo_id="pyannote/speaker-diarization-3.1",
+            filename="config.yaml",
+            token=hf_token,
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            "HF_TOKEN cannot download pyannote/speaker-diarization-3.1 config.yaml. "
+            "Check RunPod endpoint env HF_TOKEN and accept the pyannote gated model terms."
+        ) from exc
 
 
 def patch_torchaudio() -> None:
