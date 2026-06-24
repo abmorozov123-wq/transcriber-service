@@ -23,7 +23,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip \
 COPY runpod_worker/handler.py /worker/handler.py
 
 RUN python3 - <<'PY'
-from handler import patch_torchaudio
+from handler import get_diarization_api, patch_torchaudio
 from handler import patch_torch_serialization
 patch_torchaudio()
 import torch
@@ -33,6 +33,7 @@ import ctranslate2
 import whisperx
 from pathlib import Path
 assert Path("/opt/cudnn8/nvidia/cudnn/lib/libcudnn_ops_infer.so.8").exists()
+get_diarization_api(whisperx)
 print("smoke ok", torch.__version__, torchaudio.__version__, ctranslate2.__version__)
 PY
 

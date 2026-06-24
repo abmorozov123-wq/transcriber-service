@@ -60,9 +60,10 @@ def handler(event):
             if not hf_token:
                 raise RuntimeError("HF_TOKEN is required for pyannote diarization")
 
-            diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
+            DiarizationPipeline, assign_word_speakers = get_diarization_api(whisperx)
+            diarize_model = DiarizationPipeline(use_auth_token=hf_token, device=device)
             diarize_segments = diarize_model(str(wav_path))
-            result = whisperx.assign_word_speakers(diarize_segments, result)
+            result = assign_word_speakers(diarize_segments, result)
 
         return {
             "job_id": job_id,
@@ -126,6 +127,18 @@ def dummy_response(input_data):
             }
         ],
     }
+
+
+def get_diarization_api(whisperx_module):
+    pipeline = getattr(whisperx_module, "DiarizationPipeline", None)
+    assign_word_speakers = getattr(whisperx_module, "assign_word_speakers", None)
+
+    if pipeline and assign_word_speakers:
+        return pipeline, assign_word_speakers
+
+    from whisperx.diarize import DiarizationPipeline, assign_word_speakers
+
+    return DiarizationPipeline, assign_word_speakers
 
 
 def patch_torchaudio() -> None:
