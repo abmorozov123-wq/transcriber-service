@@ -191,6 +191,19 @@ def verify_pyannote_access(hf_token: str) -> None:
         ) from exc
 
 
+def startup_preflight() -> None:
+    if os.getenv("RUNPOD_WORKER_DUMMY", "false").lower() == "true":
+        return
+
+    hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+        raise RuntimeError("Startup preflight failed: HF_TOKEN is not set in RunPod environment variables.")
+
+    patch_huggingface_hub_auth_compat()
+    verify_pyannote_access(hf_token)
+    print("Startup preflight ok: HF_TOKEN can access pyannote/speaker-diarization-3.1")
+
+
 def patch_torchaudio() -> None:
     from dataclasses import dataclass
 
@@ -237,4 +250,5 @@ def patch_torch_serialization(torch_module) -> None:
 
 
 if __name__ == "__main__":
+    startup_preflight()
     runpod.serverless.start({"handler": handler})
