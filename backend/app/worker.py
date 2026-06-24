@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.db import SessionLocal, init_db
 from app.models import Job, JobStatus
 from app.notifier import send_job_files, send_message
-from app.postprocess import write_dummy_transcripts
+from app.postprocess import write_transcripts
 from app.runpod_client import RunPodClient
 from app.storage import job_dir, make_download_token
 
@@ -107,7 +107,13 @@ def complete_job(settings, job: Job, output: dict) -> None:
     job.raw_json_path = str(raw_path)
     job.updated_at = utcnow()
 
-    md_path, txt_path = write_dummy_transcripts(directory, job.id)
+    md_path, txt_path = write_transcripts(
+        directory,
+        job.id,
+        raw_payload,
+        parse_participants(job.participants),
+        settings,
+    )
     job.result_md_path = str(md_path)
     job.result_txt_path = str(txt_path)
     job.status = JobStatus.done.value
