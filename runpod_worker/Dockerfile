@@ -23,9 +23,10 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip \
 COPY runpod_worker/handler.py /worker/handler.py
 
 RUN python3 - <<'PY'
-from handler import get_diarization_api, patch_torchaudio
+from handler import get_diarization_api, patch_huggingface_hub_auth_compat, patch_torchaudio
 from handler import patch_torch_serialization
 patch_torchaudio()
+patch_huggingface_hub_auth_compat()
 import torch
 import torchaudio
 patch_torch_serialization(torch)

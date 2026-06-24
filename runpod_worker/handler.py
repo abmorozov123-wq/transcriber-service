@@ -60,6 +60,7 @@ def handler(event):
             if not hf_token:
                 raise RuntimeError("HF_TOKEN is required for pyannote diarization")
 
+            patch_huggingface_hub_auth_compat()
             DiarizationPipeline, assign_word_speakers = get_diarization_api(whisperx)
             diarize_model = DiarizationPipeline(use_auth_token=hf_token, device=device)
             diarize_segments = diarize_model(str(wav_path))
@@ -139,6 +140,33 @@ def get_diarization_api(whisperx_module):
     from whisperx.diarize import DiarizationPipeline, assign_word_speakers
 
     return DiarizationPipeline, assign_word_speakers
+
+
+def patch_huggingface_hub_auth_compat() -> None:
+    import inspect
+    import sys
+
+    import huggingface_hub
+
+    original_download = huggingface_hub.hf_hub_download
+    if "use_auth_token" in inspect.signature(original_download).parameters:
+        return
+    if getattr(original_download, "_transcriber_auth_compat", False):
+        return
+
+    def hf_hub_download_compat(*args, **kwargs):
+        if "use_auth_token" in kwargs and "token" not in kwargs:
+            kwargs["token"] = kwargs.pop("use_auth_token")
+        else:
+            kwargs.pop("use_auth_token", None)
+        return original_download(*args, **kwargs)
+
+    hf_hub_download_compat._transcriber_auth_compat = True
+    huggingface_hub.hf_hub_download = hf_hub_download_compat
+
+    pipeline_module = sys.modules.get("pyannote.audio.core.pipeline")
+    if pipeline_module is not None:
+        pipeline_module.hf_hub_download = hf_hub_download_compat
 
 
 def patch_torchaudio() -> None:
