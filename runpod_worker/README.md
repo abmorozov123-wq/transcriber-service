@@ -4,6 +4,8 @@ This image is intended for RunPod Serverless.
 
 Use the commit-specific Docker tag for RunPod releases.
 
+The worker runs a startup preflight for Hugging Face gated pyannote access.
+
 Required endpoint environment variables:
 
 ```env
